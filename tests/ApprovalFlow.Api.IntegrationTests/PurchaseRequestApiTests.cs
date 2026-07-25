@@ -7,6 +7,7 @@ using ApprovalFlow.Domain;
 using ApprovalFlow.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.SqlClient;
 
 namespace ApprovalFlow.Api.IntegrationTests;
 
@@ -268,14 +269,80 @@ public sealed class PurchaseRequestApiTests : IClassFixture<ApprovalFlowApiFacto
 
 public sealed class ApprovalFlowApiFactory : WebApplicationFactory<Program>
 {
-    private readonly string _databaseName = $"ApprovalFlowIntegrationTests_{Guid.NewGuid():N}";
+    private const string DatabasePrefix = "ApprovalFlowIntegrationTests_";
+    private const string MasterConnectionString =
+        "Server=localhost,14333;Database=master;User Id=sa;Password=LocalOnly_ApprovalFlow_2026!;TrustServerCertificate=True;Encrypt=True";
+    private readonly string _databaseName;
+    private bool _databaseDropped;
+
+    public ApprovalFlowApiFactory()
+        : this($"{DatabasePrefix}{Guid.NewGuid():N}")
+    {
+    }
+
+    internal ApprovalFlowApiFactory(string databaseName)
+    {
+        ValidateDatabaseName(databaseName);
+        _databaseName = databaseName;
+    }
+
+    public string DatabaseName => _databaseName;
+
+    public string ConnectionString =>
+        $"Server=localhost,14333;Database={_databaseName};User Id=sa;Password=LocalOnly_ApprovalFlow_2026!;TrustServerCertificate=True;Encrypt=True";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
         builder.UseSetting(
             "ConnectionStrings:ApprovalFlow",
-            $"Server=localhost,14333;Database={_databaseName};User Id=sa;Password=LocalOnly_ApprovalFlow_2026!;TrustServerCertificate=True;Encrypt=True");
+            ConnectionString);
         builder.UseSetting("SeedDevelopmentData", "true");
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing && !_databaseDropped)
+        {
+            DropDatabase(_databaseName);
+            _databaseDropped = true;
+        }
+    }
+
+    public static bool DatabaseExists(string databaseName)
+    {
+        ValidateDatabaseName(databaseName);
+        using var connection = new SqlConnection(MasterConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM sys.databases WHERE [name] = @databaseName;";
+        command.Parameters.AddWithValue("@databaseName", databaseName);
+        return Convert.ToInt32(command.ExecuteScalar()) == 1;
+    }
+
+    private static void DropDatabase(string databaseName)
+    {
+        ValidateDatabaseName(databaseName);
+        using var connection = new SqlConnection(MasterConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var quotedName = new SqlCommandBuilder().QuoteIdentifier(databaseName);
+        command.CommandText = $"""
+            IF DB_ID(@databaseName) IS NOT NULL
+            BEGIN
+                ALTER DATABASE {quotedName} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                DROP DATABASE {quotedName};
+            END
+            """;
+        command.Parameters.AddWithValue("@databaseName", databaseName);
+        command.ExecuteNonQuery();
+    }
+
+    private static void ValidateDatabaseName(string databaseName)
+    {
+        if (!databaseName.StartsWith(DatabasePrefix, StringComparison.Ordinal)
+            || !Guid.TryParseExact(databaseName[DatabasePrefix.Length..], "N", out _))
+            throw new ArgumentException("Integration database name is outside the allowed exact-name pattern.");
     }
 }

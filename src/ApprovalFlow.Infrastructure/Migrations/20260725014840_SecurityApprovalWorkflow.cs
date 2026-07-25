@@ -29,6 +29,15 @@ namespace ApprovalFlow.Infrastructure.Migrations
             migrationBuilder.Sql(
                 "UPDATE [PurchaseRequests] SET [LastModifiedAt] = [CreatedAt];");
 
+            migrationBuilder.Sql(
+                "UPDATE [PurchaseRequests] SET [Status] = N'PendingManagerApproval' WHERE [Status] = N'Submitted';");
+
+            migrationBuilder.Sql(
+                "UPDATE [PurchaseRequestAuditEntries] SET [FromStatus] = N'PendingManagerApproval' WHERE [FromStatus] = N'Submitted';");
+
+            migrationBuilder.Sql(
+                "UPDATE [PurchaseRequestAuditEntries] SET [ToStatus] = N'PendingManagerApproval' WHERE [ToStatus] = N'Submitted';");
+
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
