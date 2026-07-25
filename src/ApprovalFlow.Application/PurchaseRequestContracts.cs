@@ -61,3 +61,43 @@ public sealed record AuditEntryResult(
     PurchaseRequestStatus FromStatus,
     PurchaseRequestStatus ToStatus,
     string? Reason);
+
+public enum PurchaseRequestListScope
+{
+    Owned,
+    ManagerQueue,
+    FinanceQueue
+}
+
+public enum PurchaseRequestSort
+{
+    LastModifiedDesc,
+    LastModifiedAsc,
+    TotalDesc,
+    TotalAsc
+}
+
+public sealed record PurchaseRequestListQuery(
+    PurchaseRequestListScope Scope,
+    string? Requester,
+    PurchaseRequestStatus? Status,
+    int Page,
+    int PageSize,
+    PurchaseRequestSort Sort);
+
+public sealed record PurchaseRequestPage(
+    IReadOnlyCollection<PurchaseRequestSummaryResult> Items,
+    int Page,
+    int PageSize,
+    int TotalCount);
+
+public sealed record PurchaseRequestSummaryResult(
+    Guid Id,
+    string Vendor,
+    string Category,
+    string Requester,
+    PurchaseRequestStatus Status,
+    decimal Total,
+    bool RequiresFinanceApproval,
+    DateOnly RequestedDeliveryDate,
+    DateTimeOffset LastModifiedAt);

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using ApprovalFlow.Api;
 using ApprovalFlow.Application;
 using ApprovalFlow.Domain;
@@ -14,6 +15,8 @@ var connectionString = builder.Configuration.GetConnectionString("ApprovalFlow")
 
 builder.Services.AddOpenApi();
 builder.Services.AddValidation();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddDbContext<ApprovalFlowDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
@@ -84,10 +87,58 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
 app.MapGroup("/api/auth").WithTags("Authentication").MapIdentityApi<IdentityUser>();
+app.MapGet("/api/auth/session", (ClaimsPrincipal principal) =>
+    Results.Ok(new
+    {
+        userName = principal.Identity?.Name,
+        roles = principal.FindAll(ClaimTypes.Role).Select(claim => claim.Value).Order().ToArray()
+    }))
+    .WithTags("Authentication")
+    .RequireAuthorization();
 
 var requests = app.MapGroup("/api/purchase-requests")
     .WithTags("Purchase Requests")
     .RequireAuthorization();
+
+requests.MapGet("/mine", (
+    PurchaseRequestStatus? status,
+    int? page,
+    int? pageSize,
+    PurchaseRequestSort? sort,
+    ClaimsPrincipal principal,
+    PurchaseRequestService service,
+    CancellationToken cancellationToken) =>
+    service.ListOwnedAsync(
+        ToActor(principal), status, page ?? 1, pageSize ?? 20,
+        sort ?? PurchaseRequestSort.LastModifiedDesc, cancellationToken))
+    .RequireAuthorization(policy => policy.RequireRole(ApprovalFlowRoles.Employee))
+    .Produces<PurchaseRequestPage>();
+
+requests.MapGet("/manager-queue", (
+    int? page,
+    int? pageSize,
+    PurchaseRequestSort? sort,
+    ClaimsPrincipal principal,
+    PurchaseRequestService service,
+    CancellationToken cancellationToken) =>
+    service.ListManagerQueueAsync(
+        ToActor(principal), page ?? 1, pageSize ?? 20,
+        sort ?? PurchaseRequestSort.LastModifiedDesc, cancellationToken))
+    .RequireAuthorization(policy => policy.RequireRole(ApprovalFlowRoles.Manager))
+    .Produces<PurchaseRequestPage>();
+
+requests.MapGet("/finance-queue", (
+    int? page,
+    int? pageSize,
+    PurchaseRequestSort? sort,
+    ClaimsPrincipal principal,
+    PurchaseRequestService service,
+    CancellationToken cancellationToken) =>
+    service.ListFinanceQueueAsync(
+        ToActor(principal), page ?? 1, pageSize ?? 20,
+        sort ?? PurchaseRequestSort.LastModifiedDesc, cancellationToken))
+    .RequireAuthorization(policy => policy.RequireRole(ApprovalFlowRoles.FinanceAdministrator))
+    .Produces<PurchaseRequestPage>();
 
 requests.MapPost("/", async (
     CreatePurchaseRequestRequest request,
