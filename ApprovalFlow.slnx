@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ApprovalFlow.Api/ApprovalFlow.Api.csproj" />
+    <Project Path="src/ApprovalFlow.Application/ApprovalFlow.Application.csproj" />
+    <Project Path="src/ApprovalFlow.Domain/ApprovalFlow.Domain.csproj" />
+    <Project Path="src/ApprovalFlow.Infrastructure/ApprovalFlow.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ApprovalFlow.Api.IntegrationTests/ApprovalFlow.Api.IntegrationTests.csproj" />
+    <Project Path="tests/ApprovalFlow.Domain.UnitTests/ApprovalFlow.Domain.UnitTests.csproj" />
+  </Folder>
+</Solution>
