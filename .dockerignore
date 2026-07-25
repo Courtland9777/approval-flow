@@ -1,0 +1,5 @@
+.git
+**/bin
+**/obj
+src/ApprovalFlow.Web/node_modules
+src/ApprovalFlow.Web/test-results

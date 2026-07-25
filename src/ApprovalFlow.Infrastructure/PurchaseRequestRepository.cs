@@ -65,6 +65,14 @@ public sealed class PurchaseRequestRepository(ApprovalFlowDbContext dbContext) :
     public void AddLineItems(IEnumerable<PurchaseRequestLineItem> lineItems) =>
         dbContext.Set<PurchaseRequestLineItem>().AddRange(lineItems);
 
+    public void AddOutboxMessage(PendingIntegrationEvent integrationEvent) =>
+        dbContext.OutboxMessages.Add(new OutboxMessage(
+            integrationEvent.MessageId,
+            integrationEvent.EventType,
+            integrationEvent.Payload,
+            integrationEvent.CorrelationId,
+            integrationEvent.OccurredAt));
+
     public void SetExpectedRowVersion(PurchaseRequest request, byte[] rowVersion) =>
         dbContext.Entry(request).Property(x => x.RowVersion).OriginalValue = rowVersion;
 

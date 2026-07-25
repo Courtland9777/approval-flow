@@ -2,7 +2,7 @@
 
 ## Runtime shape
 
-ApprovalFlow remains one modular monolith: a React/TypeScript SPA, one ASP.NET Core API, and one SQL Server database. During development, Vite serves the SPA and proxies `/api` to the API. The SPA does not connect to SQL Server and does not reproduce workflow authorization rules.
+ApprovalFlow remains one modular monolith: a React/TypeScript SPA, one ASP.NET Core API, one Worker Service, and one SQL Server application database. During development, Vite serves the SPA and proxies `/api` to the API. The SPA does not connect to SQL Server and does not reproduce workflow authorization rules.
 
 The backend projects retain their existing responsibilities:
 
@@ -11,6 +11,19 @@ The backend projects retain their existing responsibilities:
 - Infrastructure owns Identity and EF Core SQL Server persistence.
 - API owns HTTP contracts, bearer authentication, validation, and Problem Details.
 - Web owns interaction state, accessible forms and tables, and presentation of server results.
+- Worker owns outbox dispatch and explicit integration-event consumption.
+
+## Transactional messaging
+
+Workflow mutation, audit creation, and outbox creation share one EF Core unit of work and one SQL Server transaction. Broker I/O is deliberately outside the API transaction. The Worker publishes `approvalflow.purchase-request.submitted.v1`, `reviewed.v1`, `returned.v1`, and `revised.v1` contracts to one local queue using the outbox ID as the broker message ID.
+
+At-least-once delivery is intentional. A publish can succeed before the SQL published marker is saved, so broker duplicate detection and the consumer's durable `ProcessedMessages` primary key both use the message ID. The projection and processed marker commit together. Bounded dispatcher failures become durable failed outbox rows; bounded consumer failures become SQL failure records and Service Bus dead letters.
+
+The official local Azure Service Bus emulator has its own required SQL Edge container. That database is an emulator implementation detail, not an ApprovalFlow service database. Emulator messages do not persist after a restart; the application SQL outbox remains the recovery authority.
+
+## Operational signals
+
+The API and Worker export local OTLP traces and metrics to the standalone Aspire dashboard. Correlation flows from the HTTP header through outbox and broker metadata into Worker spans and the activity projection. `/health/live` checks only the API process; `/health/ready` probes application SQL and messaging separately.
 
 ## Authentication and authorization
 

@@ -2,7 +2,10 @@ using ApprovalFlow.Domain;
 
 namespace ApprovalFlow.Application;
 
-public sealed class PurchaseRequestService(IPurchaseRequestRepository repository, IClock clock)
+public sealed class PurchaseRequestService(
+    IPurchaseRequestRepository repository,
+    IClock clock,
+    ICorrelationContext correlationContext)
 {
     public async Task<PurchaseRequestResult> CreateAsync(
         CreatePurchaseRequestCommand command,
@@ -198,9 +201,54 @@ public sealed class PurchaseRequestService(IPurchaseRequestRepository repository
         var expected = ParseRowVersion(rowVersion);
         repository.SetExpectedRowVersion(request, expected);
         mutation(request);
+        AddTransitionEvent(request);
         await repository.SaveChangesAsync(cancellationToken);
         await repository.RefreshRowVersionAsync(request, cancellationToken);
         return Map(request);
+    }
+
+    private void AddTransitionEvent(PurchaseRequest request)
+    {
+        var audit = request.AuditEntries.OrderByDescending(entry => entry.OccurredAt).First();
+        var pending = audit.ToStatus switch
+        {
+            PurchaseRequestStatus.PendingManagerApproval => PendingIntegrationEvent.Create(
+                IntegrationEventNames.PurchaseRequestSubmittedV1,
+                new PurchaseRequestSubmittedV1(
+                    request.Id,
+                    request.Requester,
+                    request.Total,
+                    request.RequiresFinanceApproval,
+                    audit.OccurredAt),
+                correlationContext.CorrelationId,
+                audit.OccurredAt),
+            PurchaseRequestStatus.ReturnedForChanges => PendingIntegrationEvent.Create(
+                IntegrationEventNames.PurchaseRequestReturnedV1,
+                new PurchaseRequestReturnedV1(
+                    request.Id,
+                    audit.Actor,
+                    audit.Reason!,
+                    audit.OccurredAt),
+                correlationContext.CorrelationId,
+                audit.OccurredAt),
+            PurchaseRequestStatus.Draft => PendingIntegrationEvent.Create(
+                IntegrationEventNames.PurchaseRequestRevisedV1,
+                new PurchaseRequestRevisedV1(request.Id, request.Requester, audit.OccurredAt),
+                correlationContext.CorrelationId,
+                audit.OccurredAt),
+            _ => PendingIntegrationEvent.Create(
+                IntegrationEventNames.PurchaseRequestReviewedV1,
+                new PurchaseRequestReviewedV1(
+                    request.Id,
+                    audit.Actor,
+                    audit.FromStatus,
+                    audit.ToStatus,
+                    audit.Reason,
+                    audit.OccurredAt),
+                correlationContext.CorrelationId,
+                audit.OccurredAt)
+        };
+        repository.AddOutboxMessage(pending);
     }
 
     private static void AuthorizeView(PurchaseRequest request, AuthenticatedActor actor)
