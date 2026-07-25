@@ -15,6 +15,15 @@ public sealed class PurchaseRequestRepository(ApprovalFlowDbContext dbContext) :
             .Include(x => x.AuditEntries)
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
 
+    public void AddLineItems(IEnumerable<PurchaseRequestLineItem> lineItems) =>
+        dbContext.Set<PurchaseRequestLineItem>().AddRange(lineItems);
+
+    public void SetExpectedRowVersion(PurchaseRequest request, byte[] rowVersion) =>
+        dbContext.Entry(request).Property(x => x.RowVersion).OriginalValue = rowVersion;
+
+    public Task RefreshRowVersionAsync(PurchaseRequest request, CancellationToken cancellationToken) =>
+        dbContext.Entry(request).ReloadAsync(cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         dbContext.SaveChangesAsync(cancellationToken);
 }

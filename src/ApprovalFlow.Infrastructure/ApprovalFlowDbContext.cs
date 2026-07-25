@@ -1,14 +1,19 @@
 using ApprovalFlow.Domain;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApprovalFlow.Infrastructure;
 
-public sealed class ApprovalFlowDbContext(DbContextOptions<ApprovalFlowDbContext> options) : DbContext(options)
+public sealed class ApprovalFlowDbContext(DbContextOptions<ApprovalFlowDbContext> options)
+    : IdentityDbContext<IdentityUser, IdentityRole, string>(options)
 {
     public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         var request = modelBuilder.Entity<PurchaseRequest>();
         request.ToTable("PurchaseRequests");
         request.HasKey(x => x.Id);
@@ -18,6 +23,7 @@ public sealed class ApprovalFlowDbContext(DbContextOptions<ApprovalFlowDbContext
         request.Property(x => x.BusinessJustification).HasMaxLength(2000).IsRequired();
         request.Property(x => x.Requester).HasMaxLength(100).IsRequired();
         request.Property(x => x.Status).HasConversion<string>().HasMaxLength(40);
+        request.Property(x => x.RowVersion).IsRowVersion();
         request.Ignore(x => x.Total);
         request.HasMany(x => x.LineItems).WithOne().HasForeignKey(x => x.PurchaseRequestId).OnDelete(DeleteBehavior.Cascade);
         request.HasMany(x => x.AuditEntries).WithOne().HasForeignKey(x => x.PurchaseRequestId).OnDelete(DeleteBehavior.Cascade);
