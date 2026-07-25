@@ -10,6 +10,7 @@ public interface IPurchaseRequestRepository
         PurchaseRequestListQuery query,
         CancellationToken cancellationToken);
     void AddLineItems(IEnumerable<PurchaseRequestLineItem> lineItems);
+    void AddOutboxMessage(PendingIntegrationEvent integrationEvent);
     void SetExpectedRowVersion(PurchaseRequest request, byte[] rowVersion);
     Task RefreshRowVersionAsync(PurchaseRequest request, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
@@ -18,4 +19,9 @@ public interface IPurchaseRequestRepository
 public interface IClock
 {
     DateTimeOffset UtcNow { get; }
+}
+
+public interface ICorrelationContext
+{
+    string CorrelationId { get; }
 }

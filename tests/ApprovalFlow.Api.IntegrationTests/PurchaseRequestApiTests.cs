@@ -326,6 +326,7 @@ public sealed class ApprovalFlowApiFactory : WebApplicationFactory<Program>
     private const string MasterConnectionString =
         "Server=localhost,14333;Database=master;User Id=sa;Password=LocalOnly_ApprovalFlow_2026!;TrustServerCertificate=True;Encrypt=True";
     private readonly string _databaseName;
+    private readonly string? _serviceBusConnectionString;
     private bool _databaseDropped;
 
     public ApprovalFlowApiFactory()
@@ -333,10 +334,11 @@ public sealed class ApprovalFlowApiFactory : WebApplicationFactory<Program>
     {
     }
 
-    internal ApprovalFlowApiFactory(string databaseName)
+    internal ApprovalFlowApiFactory(string databaseName, string? serviceBusConnectionString = null)
     {
         ValidateDatabaseName(databaseName);
         _databaseName = databaseName;
+        _serviceBusConnectionString = serviceBusConnectionString;
     }
 
     public string DatabaseName => _databaseName;
@@ -350,6 +352,8 @@ public sealed class ApprovalFlowApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(
             "ConnectionStrings:ApprovalFlow",
             ConnectionString);
+        if (_serviceBusConnectionString is not null)
+            builder.UseSetting("ConnectionStrings:ServiceBus", _serviceBusConnectionString);
         builder.UseSetting("SeedDevelopmentData", "true");
     }
 

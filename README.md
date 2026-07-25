@@ -7,14 +7,13 @@ ApprovalFlow is a local-first internal purchasing application built as a .NET mo
 Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
 
 ```bash
-docker compose up -d sqlserver
-dotnet restore ApprovalFlow.slnx
+docker compose up -d --build
 cd src/ApprovalFlow.Web
 npm ci
-npm run dev
+npm run dev:web -- --host 127.0.0.1
 ```
 
-The one development command starts the API on `http://localhost:5080` and the SPA on `http://127.0.0.1:5173`; Vite proxies `/api` to the API. OpenAPI is available in Development at `http://localhost:5080/openapi/v1.json`; SQL Server is exposed locally on port `14333`.
+Compose starts SQL Server, Microsoft's official local Azure Service Bus emulator, the API, the Worker, and the standalone Aspire dashboard. The SPA runs on `http://127.0.0.1:5173` and proxies `/api` to the API on `http://localhost:5080`. OpenAPI is available at `http://localhost:5080/openapi/v1.json`; Aspire telemetry is local at `http://localhost:18888`. No Azure account, tenant, subscription, namespace, payment method, or cloud resource is used.
 
 ### Local-only demo accounts
 
@@ -115,7 +114,22 @@ Three explicit server-scoped list endpoints prevent callers from changing a quer
 
 All lists use bounded page sizes (maximum 50) and deterministic sorting. See [`docs/architecture.md`](docs/architecture.md) for the UI/API boundaries and concurrency behavior.
 
-The application remains a modular monolith. Messaging/outbox/worker, Aspire, telemetry, cloud resources, deployment, and screenshots belong to later sequences.
+### Asynchronous operations
+
+Every successful workflow transition adds one explicit versioned integration event to `OutboxMessages` in the same SQL Server `SaveChanges` call as the request and audit update. The API never publishes directly, so a broker outage cannot roll back an already committed transition. The Worker polls recoverable pending rows, publishes them with their durable message ID and correlation ID, and marks them published only after Service Bus accepts them.
+
+The Worker consumes the same queue with manual settlement. It creates a local activity projection visible from `GET /api/purchase-requests/{id}/activity` and records the message ID in `ProcessedMessages` in the same database commit. Duplicate deliveries are completed without repeating the projection. Dispatch failures use bounded exponential backoff; after five attempts the outbox row retains its error and durable failed timestamp. Consumer poison messages are retried at most five times, recorded in `FailedBrokerMessages`, and moved to the broker dead-letter subqueue.
+
+`X-Correlation-ID` is accepted when it contains a bounded safe value; otherwise the API creates one. The value is returned to the caller and propagated through the outbox row, broker message, Worker log scope, trace attributes, and activity projection.
+
+Health endpoints:
+
+- `GET /health/live` reports process liveness without probing dependencies.
+- `GET /health/ready` independently probes SQL Server and the Service Bus queue and reports unavailable dependencies as not ready.
+
+OpenTelemetry exports ASP.NET Core traces/metrics plus custom API transition, outbox dispatch, consumer, duplicate, failure, and dead-letter signals to the local Aspire dashboard. Structured logs contain message/event/correlation properties. No Application Insights or cloud telemetry backend is configured.
+
+The emulator is pinned to Microsoft's `2.0.0` container and uses its required local SQL Edge `2.0.0` dependency. Queue entities are declared before startup in [`infrastructure/servicebus/Config.json`](infrastructure/servicebus/Config.json), because the emulator does not support SDK management operations. The emulator's broker data is not persistent across restarts; the SQL outbox and processed-message records are durable, so unpublished work remains recoverable.
 
 ## Frontend and end-to-end tests
 
@@ -133,7 +147,7 @@ npm run e2e
 
 ## Validation
 
-With SQL Server running:
+With Compose infrastructure running:
 
 ```bash
 dotnet restore ApprovalFlow.slnx

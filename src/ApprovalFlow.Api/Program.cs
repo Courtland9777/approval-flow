@@ -8,10 +8,17 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Azure.Messaging.ServiceBus;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("ApprovalFlow")
     ?? throw new InvalidOperationException("Connection string 'ApprovalFlow' is required.");
+var serviceBusConnectionString = builder.Configuration.GetConnectionString("ServiceBus")
+    ?? throw new InvalidOperationException("Connection string 'ServiceBus' is required.");
 
 builder.Services.AddOpenApi();
 builder.Services.AddValidation();
@@ -33,6 +40,40 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>(options =>
 builder.Services.AddScoped<IPurchaseRequestRepository, PurchaseRequestRepository>();
 builder.Services.AddScoped<PurchaseRequestService>();
 builder.Services.AddSingleton<IClock, SystemClock>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICorrelationContext, HttpCorrelationContext>();
+builder.Services.AddSingleton(new ServiceBusClient(
+    serviceBusConnectionString,
+    new ServiceBusClientOptions
+    {
+        TransportType = ServiceBusTransportType.AmqpTcp,
+        RetryOptions = new ServiceBusRetryOptions
+        {
+            MaxRetries = 0,
+            TryTimeout = TimeSpan.FromSeconds(5),
+        },
+    }));
+builder.Services.AddSingleton<ApiTelemetry>();
+builder.Services.AddHealthChecks()
+    .AddCheck<SqlReadinessHealthCheck>(
+        "sql",
+        tags: ["ready"],
+        timeout: TimeSpan.FromSeconds(5))
+    .AddCheck<ServiceBusReadinessHealthCheck>(
+        "messaging",
+        tags: ["ready"],
+        timeout: TimeSpan.FromSeconds(5));
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("ApprovalFlow.Api"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(metrics => metrics
+        .AddMeter(ApiTelemetry.MeterName)
+        .AddAspNetCoreInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddOtlpExporter());
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -40,6 +81,7 @@ builder.Services.AddProblemDetails(options =>
 });
 
 var app = builder.Build();
+app.UseMiddleware<CorrelationMiddleware>();
 app.UseExceptionHandler(handler =>
 {
     handler.Run(async context =>
@@ -82,6 +124,27 @@ app.UseStatusCodePages(async statusCodeContext =>
 });
 app.UseAuthentication();
 app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Request.Path.StartsWithSegments("/api/purchase-requests")
+        && HttpMethods.IsPost(context.Request.Method))
+    {
+        context.RequestServices.GetRequiredService<ApiTelemetry>().TransitionRequests.Add(
+            1,
+            new("http.route", context.GetEndpoint()?.DisplayName ?? context.Request.Path.Value),
+            new("http.response.status_code", context.Response.StatusCode));
+    }
+});
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+}).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+}).AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
@@ -169,6 +232,32 @@ requests.MapGet("/{id:guid}", async (
   .ProducesProblem(StatusCodes.Status401Unauthorized)
   .ProducesProblem(StatusCodes.Status403Forbidden)
   .Produces(StatusCodes.Status404NotFound);
+
+requests.MapGet("/{id:guid}/activity", async (
+    Guid id,
+    ClaimsPrincipal principal,
+    PurchaseRequestService service,
+    ApprovalFlowDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var request = await service.GetAsync(id, ToActor(principal), cancellationToken);
+    if (request is null)
+        return Results.NotFound();
+    var activity = await dbContext.ActivityProjections
+        .AsNoTracking()
+        .Where(item => item.PurchaseRequestId == id)
+        .OrderBy(item => item.RecordedAt)
+        .Select(item => new
+        {
+            item.Id,
+            item.EventType,
+            item.CorrelationId,
+            item.Summary,
+            item.RecordedAt
+        })
+        .ToListAsync(cancellationToken);
+    return Results.Ok(activity);
+}).Produces(StatusCodes.Status404NotFound);
 
 requests.MapPut("/{id:guid}", async (
     Guid id,

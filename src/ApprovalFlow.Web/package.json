@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,green \"dotnet run --project ../ApprovalFlow.Api\" \"vite\"",
+    "dev:web": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "lint": "eslint .",
     "test": "vitest run",

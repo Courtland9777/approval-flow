@@ -4,6 +4,7 @@
     <Project Path="src/ApprovalFlow.Application/ApprovalFlow.Application.csproj" />
     <Project Path="src/ApprovalFlow.Domain/ApprovalFlow.Domain.csproj" />
     <Project Path="src/ApprovalFlow.Infrastructure/ApprovalFlow.Infrastructure.csproj" />
+    <Project Path="src/ApprovalFlow.Worker/ApprovalFlow.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ApprovalFlow.Api.IntegrationTests/ApprovalFlow.Api.IntegrationTests.csproj" />
