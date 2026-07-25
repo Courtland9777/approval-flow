@@ -4,6 +4,7 @@ using ApprovalFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ApprovalFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApprovalFlowDbContext))]
-    partial class ApprovalFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260725014840_SecurityApprovalWorkflow")]
+    partial class SecurityApprovalWorkflow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
