@@ -4,3 +4,7 @@ obj/
 *.user
 TestResults/
 .env
+node_modules/
+dist/
+playwright-report/
+test-results/

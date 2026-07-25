@@ -38,6 +38,64 @@ public sealed class PurchaseRequestService(IPurchaseRequestRepository repository
         return Map(request);
     }
 
+    public Task<PurchaseRequestPage> ListOwnedAsync(
+        AuthenticatedActor actor,
+        PurchaseRequestStatus? status,
+        int page,
+        int pageSize,
+        PurchaseRequestSort sort,
+        CancellationToken cancellationToken)
+    {
+        RequireRole(actor, ApprovalFlowRoles.Employee);
+        return repository.ListAsync(
+            new PurchaseRequestListQuery(
+                PurchaseRequestListScope.Owned,
+                actor.UserName,
+                status,
+                ValidatePage(page),
+                ValidatePageSize(pageSize),
+                sort),
+            cancellationToken);
+    }
+
+    public Task<PurchaseRequestPage> ListManagerQueueAsync(
+        AuthenticatedActor actor,
+        int page,
+        int pageSize,
+        PurchaseRequestSort sort,
+        CancellationToken cancellationToken)
+    {
+        RequireRole(actor, ApprovalFlowRoles.Manager);
+        return repository.ListAsync(
+            new PurchaseRequestListQuery(
+                PurchaseRequestListScope.ManagerQueue,
+                null,
+                PurchaseRequestStatus.PendingManagerApproval,
+                ValidatePage(page),
+                ValidatePageSize(pageSize),
+                sort),
+            cancellationToken);
+    }
+
+    public Task<PurchaseRequestPage> ListFinanceQueueAsync(
+        AuthenticatedActor actor,
+        int page,
+        int pageSize,
+        PurchaseRequestSort sort,
+        CancellationToken cancellationToken)
+    {
+        RequireRole(actor, ApprovalFlowRoles.FinanceAdministrator);
+        return repository.ListAsync(
+            new PurchaseRequestListQuery(
+                PurchaseRequestListScope.FinanceQueue,
+                null,
+                PurchaseRequestStatus.PendingFinanceApproval,
+                ValidatePage(page),
+                ValidatePageSize(pageSize),
+                sort),
+            cancellationToken);
+    }
+
     public Task<PurchaseRequestResult?> SubmitAsync(
         Guid id,
         TransitionPurchaseRequestCommand command,
@@ -196,6 +254,20 @@ public sealed class PurchaseRequestService(IPurchaseRequestRepository repository
         {
             throw new DomainValidationException("RowVersion must be a non-empty base64 value.");
         }
+    }
+
+    private static int ValidatePage(int page)
+    {
+        if (page < 1)
+            throw new DomainValidationException("Page must be at least 1.");
+        return page;
+    }
+
+    private static int ValidatePageSize(int pageSize)
+    {
+        if (pageSize is < 1 or > 50)
+            throw new DomainValidationException("PageSize must be between 1 and 50.");
+        return pageSize;
     }
 
     private static IEnumerable<PurchaseRequestLineItem> CreateItems(IEnumerable<CreateLineItem> items) =>

@@ -44,6 +44,59 @@ public sealed class PurchaseRequestApiTests : IClassFixture<ApprovalFlowApiFacto
     }
 
     [Fact]
+    public async Task Lists_are_role_scoped_bounded_and_do_not_expose_other_employee_requests()
+    {
+        using var employee = await CreateAuthenticatedClientAsync(DevelopmentSeed.EmployeeUserName);
+        using var otherEmployee = await CreateAuthenticatedClientAsync(DevelopmentSeed.SecondEmployeeUserName);
+        using var manager = await CreateAuthenticatedClientAsync(DevelopmentSeed.ManagerUserName);
+        using var finance = await CreateAuthenticatedClientAsync(DevelopmentSeed.FinanceUserName);
+
+        var owned = await CreateAsync(employee, "Software", 1500m);
+        var otherOwned = await CreateAsync(otherEmployee, "Software", 1600m);
+        await SubmitAsync(employee, owned);
+        await SubmitAsync(otherEmployee, otherOwned);
+
+        var mine = await employee.GetFromJsonAsync<PurchaseRequestPage>(
+            "/api/purchase-requests/mine?page=1&pageSize=1&sort=TotalDesc",
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(mine);
+        Assert.All(mine.Items, item =>
+            Assert.Equal(DevelopmentSeed.EmployeeUserName, item.Requester));
+        Assert.Equal(1, mine.PageSize);
+
+        var managerQueue = await manager.GetFromJsonAsync<PurchaseRequestPage>(
+            "/api/purchase-requests/manager-queue?page=1&pageSize=20",
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(managerQueue);
+        Assert.Contains(managerQueue.Items, item => item.Id == owned.Id);
+        Assert.Contains(managerQueue.Items, item => item.Id == otherOwned.Id);
+        Assert.All(managerQueue.Items, item =>
+            Assert.Equal(PurchaseRequestStatus.PendingManagerApproval, item.Status));
+
+        var forbiddenManagerQueue = await employee.GetAsync(
+            "/api/purchase-requests/manager-queue?page=1&pageSize=20",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenManagerQueue.StatusCode);
+
+        var emptyFinanceQueue = await finance.GetFromJsonAsync<PurchaseRequestPage>(
+            "/api/purchase-requests/finance-queue?page=1&pageSize=20&status=Draft",
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(emptyFinanceQueue);
+        Assert.Empty(emptyFinanceQueue.Items);
+    }
+
+    [Fact]
+    public async Task List_rejects_unbounded_page_sizes()
+    {
+        using var employee = await CreateAuthenticatedClientAsync(DevelopmentSeed.EmployeeUserName);
+        var response = await employee.GetAsync(
+            "/api/purchase-requests/mine?page=1&pageSize=51",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Employee_cannot_approve_and_finance_cannot_take_manager_step()
     {
         using var employee = await CreateAuthenticatedClientAsync(DevelopmentSeed.EmployeeUserName);

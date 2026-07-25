@@ -1,18 +1,20 @@
 # ApprovalFlow
 
-ApprovalFlow is a local-first internal purchasing API built as a .NET modular monolith. Its current vertical slice authenticates users, enforces employee ownership and reviewer roles, routes deterministic approvals, records an audit trail, and rejects stale writes with SQL Server optimistic concurrency.
+ApprovalFlow is a local-first internal purchasing application built as a .NET modular monolith. Its React workflow authenticates employees, managers, and finance administrators against the ASP.NET Core API, enforces ownership and reviewer roles, routes deterministic approvals, records an audit trail, and rejects stale writes with SQL Server optimistic concurrency.
 
 ## Quick start
 
-Requirements: .NET 10 SDK, Docker, and Docker Compose.
+Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
 
 ```bash
 docker compose up -d sqlserver
 dotnet restore ApprovalFlow.slnx
-dotnet run --project src/ApprovalFlow.Api
+cd src/ApprovalFlow.Web
+npm ci
+npm run dev
 ```
 
-The API starts on `http://localhost:5080`. OpenAPI is available in Development at `http://localhost:5080/openapi/v1.json`; SQL Server is exposed locally on port `14333`.
+The one development command starts the API on `http://localhost:5080` and the SPA on `http://127.0.0.1:5173`; Vite proxies `/api` to the API. OpenAPI is available in Development at `http://localhost:5080/openapi/v1.json`; SQL Server is exposed locally on port `14333`.
 
 ### Local-only demo accounts
 
@@ -99,10 +101,35 @@ Set `ConnectionStrings__ApprovalFlow` to override the non-secret development con
 - `ApprovalFlow.Application`: authenticated use-case orchestration, role/resource checks, and API result contracts.
 - `ApprovalFlow.Infrastructure`: ASP.NET Core Identity and application persistence in one SQL Server database, migrations, row-version concurrency, and local demo seed.
 - `ApprovalFlow.Api`: local bearer authentication, HTTP/OpenAPI endpoints, validation, and RFC Problem Details.
+- `ApprovalFlow.Web`: Vite React/TypeScript SPA, session-scoped authentication, role workspaces, accessible request forms, and the Playwright lifecycle runner.
 - `ApprovalFlow.Domain.UnitTests`: focused transition and policy tests.
 - `ApprovalFlow.Api.IntegrationTests`: SQL Server-backed authentication, authorization, workflow, audit, and concurrency tests.
 
-The application remains a modular monolith. React, messaging/outbox/worker, Aspire, telemetry, cloud resources, deployment, and screenshots belong to later sequences.
+The SPA keeps server data in component state and uses a small typed fetch layer; it has no generalized client state/query framework. The bearer access token is stored only in browser `sessionStorage`. Refresh tokens are not retained. Logout clears the token locally, and there is no registration UI.
+
+Three explicit server-scoped list endpoints prevent callers from changing a query parameter to broaden access:
+
+- `GET /api/purchase-requests/mine` derives the owner from the bearer principal and supports status filtering.
+- `GET /api/purchase-requests/manager-queue` always returns pending manager work and requires the Manager role.
+- `GET /api/purchase-requests/finance-queue` always returns pending finance work and requires the FinanceAdministrator role.
+
+All lists use bounded page sizes (maximum 50) and deterministic sorting. See [`docs/architecture.md`](docs/architecture.md) for the UI/API boundaries and concurrency behavior.
+
+The application remains a modular monolith. Messaging/outbox/worker, Aspire, telemetry, cloud resources, deployment, and screenshots belong to later sequences.
+
+## Frontend and end-to-end tests
+
+```bash
+cd src/ApprovalFlow.Web
+npm ci
+npm run lint
+npm test
+npm run build
+npx playwright install chromium
+npm run e2e
+```
+
+`npm run e2e` requires the Compose SQL Server to be healthy. It creates a unique database named `ApprovalFlowE2E_<GUID>`, starts the real API and SPA, and runs the primary workflow without API mocks. Its `finally` cleanup validates the exact database name, drops only that database, and verifies removal. On hosts missing Chromium system libraries, the runner uses the version-pinned official Playwright browser-server image; the container is ephemeral and uses host networking only for the local test servers.
 
 ## Validation
 
@@ -113,6 +140,14 @@ dotnet restore ApprovalFlow.slnx
 dotnet build ApprovalFlow.slnx --no-restore
 dotnet test ApprovalFlow.slnx --no-build
 dotnet format ApprovalFlow.slnx --verify-no-changes --no-restore
+cd src/ApprovalFlow.Web
+npm ci
+npm run lint
+npm test
+npm run build
+npx playwright install chromium
+npm run e2e
+cd ../..
 git diff --check
 docker compose config --quiet
 ```
