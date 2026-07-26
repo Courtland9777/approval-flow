@@ -38,6 +38,8 @@ Stop only this Compose project, preserving its development volumes:
 
 No Azure account, tenant, subscription, namespace, payment method, paid service, or live deployment is used. The emulator is a local development/test boundary and its broker storage is intentionally non-persistent.
 
+All published development endpoints bind only to IPv4 loopback (`127.0.0.1`). They are intended for access from the local machine, not from a LAN or the internet.
+
 ### Local-only demo accounts
 
 These seeded credentials are non-sensitive demonstration data. They must never be reused or deployed:

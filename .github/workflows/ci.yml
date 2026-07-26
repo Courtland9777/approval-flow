@@ -40,6 +40,7 @@ jobs:
       - working-directory: src/ApprovalFlow.Web
         run: npm run e2e
       - run: docker compose config --quiet
+      - run: node scripts/check-compose-loopback.mjs
       - run: docker compose build
       - if: always()
         run: docker compose down --remove-orphans

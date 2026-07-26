@@ -16,4 +16,5 @@ dotnet format ApprovalFlow.slnx --verify-no-changes --no-restore
 )
 
 docker compose config --quiet
+node scripts/check-compose-loopback.mjs
 git diff --check

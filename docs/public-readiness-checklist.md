@@ -13,7 +13,7 @@ This checklist prepares evidence; it does not approve visibility, publication, d
 | 7 | Complete audit history is visible | Ready for independent verification | Playwright assertions, finance/audit screenshot |
 | 8 | OpenAPI is inspectable | Ready for independent verification | `/openapi/v1.json`, `Program.cs` |
 | 9 | Async processing/retries/failures are inspectable | Ready for independent verification | async tests, `docs/operations.md`, message diagram |
-| 10 | CI passes | Ready for independent verification | PR #5 CI run `30181659860` passed the complete application job |
+| 10 | CI passes | Ready for independent verification | `.github/workflows/ci.yml`, `scripts/validate.sh`; reviewer verifies the latest applicable successful CI result |
 | 11 | Representative unit/integration/E2E tests exist | Ready for independent verification | `tests/`, web tests, CI workflow |
 | 12 | Architecture/tradeoffs/diagram are clear | Ready for independent verification | `docs/architecture.md` |
 | 13 | Screenshots/short recording are viewable | Ready for independent verification | `docs/media/` and `docs/media.md` |

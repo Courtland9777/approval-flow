@@ -14,4 +14,6 @@ Committed media may contain only `.local.test` accounts and generated requestsâ€
 
 This is a local demonstration, not a production security deployment. It has no external TLS termination, production secret store, account recovery, MFA, cloud identity, internet exposure, vulnerability-scan claim, or penetration-test claim. Local demo credentials must never be reused.
 
+Every published development port binds explicitly to IPv4 loopback (`127.0.0.1`). The SQL Server, Service Bus emulator, API, SPA, Aspire frontend, and OTLP receiver are not intended for LAN or internet exposure. Container-to-container traffic remains on the private Compose network.
+
 `npm audit` currently reports 13 high-severity development-tool dependency advisories; `npm audit --omit=dev --audit-level=high` reports 0 production dependency vulnerabilities. No forced or breaking automated upgrade is applied merely to silence tooling-tree output.

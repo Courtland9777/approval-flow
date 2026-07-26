@@ -28,6 +28,10 @@ async function signOut() {
   await page.getByRole('button', { name: 'Log out' }).click()
 }
 
+async function reviewerPause() {
+  await page.waitForTimeout(1_800)
+}
+
 await signIn('employee.demo@local.test')
 await page.getByRole('button', { name: 'New request' }).click()
 await page.getByLabel('Vendor').fill(vendor)
@@ -39,22 +43,30 @@ await page.getByLabel('Description').fill('Team development subscription')
 await page.getByLabel('Quantity').fill('2')
 await page.getByLabel('Unit price').fill('750')
 await page.getByRole('button', { name: 'Create draft' }).click()
+await reviewerPause()
 await page.getByRole('button', { name: 'Submit for approval' }).click()
+await reviewerPause()
 await page.screenshot({ path: resolve(mediaDir, 'employee-request.png'), fullPage: true })
 await signOut()
 
 await signIn('manager.demo@local.test')
 await page.getByRole('button', { name: 'Manager', exact: true }).click()
+await reviewerPause()
 await page.getByRole('row', { name: new RegExp(vendor) }).getByRole('button', { name: 'View' }).click()
+await reviewerPause()
 await page.screenshot({ path: resolve(mediaDir, 'manager-review.png'), fullPage: true })
 await page.getByLabel('Decision reason').fill('Manager confirms the generated business need.')
 await page.getByRole('button', { name: 'Approve' }).click()
+await reviewerPause()
 await signOut()
 
 await signIn('finance.demo@local.test')
+await reviewerPause()
 await page.getByRole('row', { name: new RegExp(vendor) }).getByRole('button', { name: 'View' }).click()
+await reviewerPause()
 await page.getByLabel('Decision reason').fill('Finance confirms the generated budget.')
 await page.getByRole('button', { name: 'Approve' }).click()
+await reviewerPause()
 await page.screenshot({ path: resolve(mediaDir, 'finance-audit.png'), fullPage: true })
 
 const video = page.video()
