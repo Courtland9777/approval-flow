@@ -13,7 +13,7 @@ This checklist maps the independently verified recruiter/public-readiness eviden
 | 7 | Complete audit history is visible | Verified | Playwright assertions, finance/audit screenshot |
 | 8 | OpenAPI is inspectable | Verified | `/openapi/v1.json`, `Program.cs` |
 | 9 | Async processing/retries/failures are inspectable | Verified | async tests, `docs/operations.md`, message diagram |
-| 10 | CI passes | Verified | `.github/workflows/ci.yml`, `scripts/validate.sh`; reviewed successful CI run `30184402694` |
+| 10 | CI passes | Verified | `.github/workflows/ci.yml`, `scripts/validate.sh`; latest successful applicable default-branch or pull-request run, independently verified |
 | 11 | Representative unit/integration/E2E tests exist | Verified | `tests/`, web tests, CI workflow |
 | 12 | Architecture/tradeoffs/diagram are clear | Verified | `docs/architecture.md` |
 | 13 | Screenshots/short recording are viewable | Verified | `docs/media/` and `docs/media.md` |
