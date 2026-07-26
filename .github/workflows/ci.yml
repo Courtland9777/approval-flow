@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/ApprovalFlow.Web/package-lock.json
+      - run: ./scripts/start-local.sh
+      - run: dotnet restore ApprovalFlow.slnx
+      - run: dotnet build ApprovalFlow.slnx --no-restore
+      - run: dotnet test ApprovalFlow.slnx --no-build
+        env:
+          APPROVALFLOW_TESTCONTAINERS: "true"
+      - run: dotnet format ApprovalFlow.slnx --verify-no-changes --no-restore
+      - working-directory: src/ApprovalFlow.Web
+        run: npm ci
+      - working-directory: src/ApprovalFlow.Web
+        run: npm run lint
+      - working-directory: src/ApprovalFlow.Web
+        run: npm test
+      - working-directory: src/ApprovalFlow.Web
+        run: npm run build
+      - working-directory: src/ApprovalFlow.Web
+        run: npm run e2e
+      - run: docker compose config --quiet
+      - run: node scripts/check-compose-loopback.mjs
+      - run: docker compose build
+      - if: always()
+        run: docker compose down --remove-orphans

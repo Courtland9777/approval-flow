@@ -104,19 +104,20 @@ public sealed class PurchaseRequestService(
         TransitionPurchaseRequestCommand command,
         AuthenticatedActor actor,
         CancellationToken cancellationToken) =>
-        MutateAsync(id, command.RowVersion, actor, cancellationToken,
+        MutateAsync(id, command.RowVersion, actor,
             request =>
             {
                 RequireOwner(request, actor);
                 request.Submit(actor.UserName, clock.UtcNow, command.Reason);
-            });
+            },
+            cancellationToken);
 
     public Task<PurchaseRequestResult?> ReviseAsync(
         Guid id,
         RevisePurchaseRequestCommand command,
         AuthenticatedActor actor,
         CancellationToken cancellationToken) =>
-        MutateAsync(id, command.RowVersion, actor, cancellationToken,
+        MutateAsync(id, command.RowVersion, actor,
             request =>
             {
                 RequireOwner(request, actor);
@@ -132,14 +133,15 @@ public sealed class PurchaseRequestService(
                     clock.UtcNow,
                     command.Reason);
                 repository.AddLineItems(lineItems);
-            });
+            },
+            cancellationToken);
 
     public Task<PurchaseRequestResult?> ApproveAsync(
         Guid id,
         TransitionPurchaseRequestCommand command,
         AuthenticatedActor actor,
         CancellationToken cancellationToken) =>
-        MutateAsync(id, command.RowVersion, actor, cancellationToken,
+        MutateAsync(id, command.RowVersion, actor,
             request =>
             {
                 if (request.Status == PurchaseRequestStatus.PendingManagerApproval)
@@ -156,44 +158,48 @@ public sealed class PurchaseRequestService(
                 {
                     throw new DomainConflictException($"A request in {request.Status} cannot be approved.");
                 }
-            });
+            },
+            cancellationToken);
 
     public Task<PurchaseRequestResult?> RejectAsync(
         Guid id,
         RequiredReasonTransitionCommand command,
         AuthenticatedActor actor,
         CancellationToken cancellationToken) =>
-        ReviewDecisionAsync(id, command.RowVersion, command.Reason, actor, cancellationToken,
-            (request, name, now, reason) => request.Reject(name, now, reason));
+        ReviewDecisionAsync(id, command.RowVersion, command.Reason, actor,
+            (request, name, now, reason) => request.Reject(name, now, reason),
+            cancellationToken);
 
     public Task<PurchaseRequestResult?> ReturnAsync(
         Guid id,
         RequiredReasonTransitionCommand command,
         AuthenticatedActor actor,
         CancellationToken cancellationToken) =>
-        ReviewDecisionAsync(id, command.RowVersion, command.Reason, actor, cancellationToken,
-            (request, name, now, reason) => request.ReturnForChanges(name, now, reason));
+        ReviewDecisionAsync(id, command.RowVersion, command.Reason, actor,
+            (request, name, now, reason) => request.ReturnForChanges(name, now, reason),
+            cancellationToken);
 
     private Task<PurchaseRequestResult?> ReviewDecisionAsync(
         Guid id,
         string rowVersion,
         string reason,
         AuthenticatedActor actor,
-        CancellationToken cancellationToken,
-        Action<PurchaseRequest, string, DateTimeOffset, string> decision) =>
-        MutateAsync(id, rowVersion, actor, cancellationToken,
+        Action<PurchaseRequest, string, DateTimeOffset, string> decision,
+        CancellationToken cancellationToken) =>
+        MutateAsync(id, rowVersion, actor,
             request =>
             {
                 RequireRoleForCurrentReview(request, actor);
                 decision(request, actor.UserName, clock.UtcNow, reason);
-            });
+            },
+            cancellationToken);
 
     private async Task<PurchaseRequestResult?> MutateAsync(
         Guid id,
         string rowVersion,
         AuthenticatedActor actor,
-        CancellationToken cancellationToken,
-        Action<PurchaseRequest> mutation)
+        Action<PurchaseRequest> mutation,
+        CancellationToken cancellationToken)
     {
         var request = await repository.GetAsync(id, cancellationToken);
         if (request is null)
