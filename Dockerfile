@@ -14,3 +14,15 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0.10 AS worker
 WORKDIR /app
 COPY --from=build /app/worker .
 ENTRYPOINT ["dotnet", "ApprovalFlow.Worker.dll"]
+
+FROM node:24.4.1-alpine AS web-build
+WORKDIR /src
+COPY src/ApprovalFlow.Web/package*.json ./
+RUN npm ci
+COPY src/ApprovalFlow.Web/ ./
+RUN npm run build
+
+FROM nginx:1.29.0-alpine AS web
+COPY infrastructure/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY --from=web-build /src/dist /usr/share/nginx/html
+EXPOSE 80

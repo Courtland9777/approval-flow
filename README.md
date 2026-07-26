@@ -2,18 +2,41 @@
 
 ApprovalFlow is a local-first internal purchasing application built as a .NET modular monolith. Its React workflow authenticates employees, managers, and finance administrators against the ASP.NET Core API, enforces ownership and reviewer roles, routes deterministic approvals, records an audit trail, and rejects stale writes with SQL Server optimistic concurrency.
 
-## Quick start
+## How it works
+
+An employee drafts and submits a purchase request. A manager can approve, reject, or return it; requests of at least $1,000 and Software or Security purchases continue to a finance administrator. Each decision is authenticated, authorized, concurrency-protected, and appended to the audit history. The API transaction writes the request, audit entry, and versioned outbox message together; a Worker later publishes and projects that activity through the local Azure Service Bus emulator.
+
+Primary technologies: .NET 10, ASP.NET Core, EF Core, SQL Server, React 19, TypeScript, Azure Service Bus SDK plus local emulator, Docker Compose, OpenTelemetry/Aspire, xUnit, Vitest, Playwright, and GitHub Actions.
+
+```mermaid
+flowchart LR
+    E[Employee] -->|submit| M[Manager review]
+    M -->|return| E
+    M -->|reject| X[Rejected]
+    M -->|approve: routine| A[Approved]
+    M -->|approve: threshold/category| F[Finance review]
+    F -->|approve| A
+    F -->|reject| X
+    F -->|return| E
+```
+
+## One-command local start
 
 Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
 
 ```bash
-docker compose up -d --build
-cd src/ApprovalFlow.Web
-npm ci
-npm run dev:web -- --host 127.0.0.1
+./scripts/start-local.sh
 ```
 
-Compose starts SQL Server, Microsoft's official local Azure Service Bus emulator, the API, the Worker, and the standalone Aspire dashboard. The SPA runs on `http://127.0.0.1:5173` and proxies `/api` to the API on `http://localhost:5080`. OpenAPI is available at `http://localhost:5080/openapi/v1.json`; Aspire telemetry is local at `http://localhost:18888`. No Azure account, tenant, subscription, namespace, payment method, or cloud resource is used.
+This starts SQL Server, Microsoft's local Azure Service Bus emulator and its SQL Edge dependency, the API, Worker, built React SPA, and standalone Aspire dashboard. The SPA is at `http://localhost:5173`, OpenAPI at `http://localhost:5080/openapi/v1.json`, health at `/health/live` and `/health/ready`, and local telemetry at `http://localhost:18888`.
+
+Stop only this Compose project, preserving its development volumes:
+
+```bash
+./scripts/stop-local.sh
+```
+
+No Azure account, tenant, subscription, namespace, payment method, paid service, or live deployment is used. The emulator is a local development/test boundary and its broker storage is intentionally non-persistent.
 
 ### Local-only demo accounts
 
@@ -165,3 +188,7 @@ cd ../..
 git diff --check
 docker compose config --quiet
 ```
+
+The same application validation runs in [GitHub Actions](.github/workflows/ci.yml), including real SQL Server and Service Bus emulator integration tests and Playwright. Testcontainers adds an opt-in isolated SQL migration/seed test (`APPROVALFLOW_TESTCONTAINERS=true`) while the established Compose boundary remains authoritative for emulator tests.
+
+For clean-checkout review, media refresh, operations/security notes, and the 15-item evidence map, see [`docs/clean-checkout.md`](docs/clean-checkout.md), [`docs/media.md`](docs/media.md), [`docs/operations.md`](docs/operations.md), [`docs/security-privacy.md`](docs/security-privacy.md), and [`docs/public-readiness-checklist.md`](docs/public-readiness-checklist.md).

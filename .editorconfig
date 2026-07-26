@@ -1,0 +1,23 @@
+root = true
+
+[*.{cs,csproj}]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA1873.severity = none
+
+[src/**/Migrations/*.cs]
+generated_code = true
+
+[*.{json,jsonc,js,mjs,ts,tsx,yml,yaml,md}]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2

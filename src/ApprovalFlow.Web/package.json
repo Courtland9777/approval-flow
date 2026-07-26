@@ -9,7 +9,8 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "lint": "eslint .",
     "test": "vitest run",
-    "e2e": "node scripts/run-e2e.mjs"
+    "e2e": "node scripts/run-e2e.mjs",
+    "media": "node scripts/capture-media.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

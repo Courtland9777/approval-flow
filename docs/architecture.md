@@ -2,6 +2,17 @@
 
 ## Runtime shape
 
+```mermaid
+flowchart TB
+    Browser[React SPA] -->|Bearer-authenticated HTTP| API[ASP.NET Core API]
+    API -->|EF Core transaction| DB[(SQL Server)]
+    Worker[.NET Worker] --> DB
+    Worker -->|AMQP publish/consume| SB[Local Service Bus emulator]
+    SB --> ES[(Emulator SQL Edge)]
+    API -->|OTLP| Aspire[Aspire dashboard]
+    Worker -->|OTLP| Aspire
+```
+
 ApprovalFlow remains one modular monolith: a React/TypeScript SPA, one ASP.NET Core API, one Worker Service, and one SQL Server application database. During development, Vite serves the SPA and proxies `/api` to the API. The SPA does not connect to SQL Server and does not reproduce workflow authorization rules.
 
 The backend projects retain their existing responsibilities:
@@ -14,6 +25,23 @@ The backend projects retain their existing responsibilities:
 - Worker owns outbox dispatch and explicit integration-event consumption.
 
 ## Transactional messaging
+
+```mermaid
+sequenceDiagram
+    participant U as Authenticated user
+    participant A as API
+    participant D as SQL Server
+    participant W as Worker
+    participant B as Local Service Bus emulator
+    U->>A: Submit or review (rowVersion + correlation ID)
+    A->>D: Commit request + audit + outbox atomically
+    A-->>U: Updated request
+    W->>D: Claim recoverable outbox row
+    W->>B: Publish durable message ID
+    B-->>W: Delivery (at least once)
+    W->>D: Commit projection + processed-message ID
+    W->>B: Complete
+```
 
 Workflow mutation, audit creation, and outbox creation share one EF Core unit of work and one SQL Server transaction. Broker I/O is deliberately outside the API transaction. The Worker publishes `approvalflow.purchase-request.submitted.v1`, `reviewed.v1`, `returned.v1`, and `revised.v1` contracts to one local queue using the outbox ID as the broker message ID.
 
@@ -48,3 +76,14 @@ Each update sends the latest base64 `rowVersion` returned by the API. A `409` is
 ## Testing boundary
 
 Vitest covers session-only token persistence and typed Problem Details/concurrency handling. The Playwright workflow runs against the real API and a uniquely named SQL Server database. The lifecycle runner validates the `ApprovalFlowE2E_<32 lowercase hex characters>` name before any drop, terminates its exact ephemeral browser container, drops only that database, and queries `master` to verify removal. Traces, videos, and screenshots are retained only on failure.
+
+Testcontainers is deliberately limited to an opt-in SQL Server migration/seed isolation test. It proves clean-machine container allocation without rewriting the reliable, exact-name database factory or pretending the Service Bus emulator is a single-container dependency. Compose remains the representative integration boundary for SQL Server, SQL Edge, the real emulator, and asynchronous failure behavior.
+
+## Tradeoffs and intentional non-goals
+
+- A modular monolith keeps transactions and authorization understandable; this is not microservices.
+- At-least-once delivery requires durable idempotency instead of distributed transactions.
+- Local Identity bearer tokens and seeded accounts make review reproducible; they are not a production identity design.
+- The emulator improves local fidelity but is explicitly not deployed Azure Service Bus experience.
+- The SPA uses a small typed fetch layer instead of a generalized state framework.
+- No Kubernetes, event sourcing, generic workflow engine, payment/vendor integration, multi-tenancy, paid cloud service, or live deployment is included.
