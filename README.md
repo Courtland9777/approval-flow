@@ -1,10 +1,38 @@
 # ApprovalFlow
 
+[![CI](https://github.com/Courtland9777/approval-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Courtland9777/approval-flow/actions/workflows/ci.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=20232A)](https://react.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ApprovalFlow is a local-first internal purchasing application built as a .NET modular monolith. Its React workflow authenticates employees, managers, and finance administrators against the ASP.NET Core API, enforces ownership and reviewer roles, routes deterministic approvals, records an audit trail, and rejects stale writes with SQL Server optimistic concurrency.
 
 ## How it works
 
 An employee drafts and submits a purchase request. A manager can approve, reject, or return it; requests of at least $1,000 and Software or Security purchases continue to a finance administrator. Each decision is authenticated, authorized, concurrency-protected, and appended to the audit history. The API transaction writes the request, audit entry, and versioned outbox message together; a Worker later publishes and projects that activity through the local Azure Service Bus emulator.
+
+## What this demonstrates
+
+- Role-based and resource-level authorization, including defense-in-depth self-approval prevention.
+- SQL Server persistence, complete audit history, and optimistic concurrency with explicit conflict responses.
+- A transactional outbox and idempotent .NET Worker processing for reliable at-least-once delivery.
+- The Azure Service Bus SDK exercised against Microsoft's local emulator, with bounded retry and dead-letter handling.
+- OpenTelemetry and local Aspire observability, dependency-aware health checks, and end-to-end correlation.
+- Representative unit, SQL-backed integration, Testcontainers, frontend, and Playwright validation in GitHub Actions.
+
+<img src="docs/media/finance-audit.png" alt="ApprovalFlow finance review workspace showing request details, asynchronous activity, and complete audit history" width="900">
+
+**See it:** [approximately 16-second primary workflow demonstration](docs/media/primary-workflow.webm) · [architecture and tradeoffs](docs/architecture.md) · [GitHub Actions CI](https://github.com/Courtland9777/approval-flow/actions/workflows/ci.yml) · [independent public-readiness evidence](docs/public-readiness-checklist.md)
+
+## One-command local start
+
+Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
+
+```bash
+./scripts/start-local.sh
+```
+
+This starts SQL Server, Microsoft's local Azure Service Bus emulator and its SQL Edge dependency, the API, Worker, built React SPA, and standalone Aspire dashboard. The SPA is at `http://localhost:5173`, OpenAPI at `http://localhost:5080/openapi/v1.json`, health at `/health/live` and `/health/ready`, and local telemetry at `http://localhost:18888`.
 
 Primary technologies: .NET 10, ASP.NET Core, EF Core, SQL Server, React 19, TypeScript, Azure Service Bus SDK plus local emulator, Docker Compose, OpenTelemetry/Aspire, xUnit, Vitest, Playwright, and GitHub Actions.
 
@@ -19,16 +47,6 @@ flowchart LR
     F -->|reject| X
     F -->|return| E
 ```
-
-## One-command local start
-
-Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
-
-```bash
-./scripts/start-local.sh
-```
-
-This starts SQL Server, Microsoft's local Azure Service Bus emulator and its SQL Edge dependency, the API, Worker, built React SPA, and standalone Aspire dashboard. The SPA is at `http://localhost:5173`, OpenAPI at `http://localhost:5080/openapi/v1.json`, health at `/health/live` and `/health/ready`, and local telemetry at `http://localhost:18888`.
 
 Stop only this Compose project, preserving its development volumes:
 
