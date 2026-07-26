@@ -12,36 +12,6 @@ jobs:
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2025-CU1-ubuntu-22.04
-        env:
-          ACCEPT_EULA: Y
-          MSSQL_PID: Developer
-          MSSQL_SA_PASSWORD: LocalOnly_ApprovalFlow_2026!
-        ports:
-          - 14333:1433
-        options: >-
-          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'LocalOnly_ApprovalFlow_2026!' -C -Q 'SELECT 1'"
-          --health-interval=5s --health-timeout=5s --health-retries=20
-      servicebus-sql:
-        image: mcr.microsoft.com/azure-sql-edge:2.0.0
-        env:
-          ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: LocalOnly_ServiceBus_2026!
-      servicebus:
-        image: mcr.microsoft.com/azure-messaging/servicebus-emulator:2.0.0
-        env:
-          ACCEPT_EULA: Y
-          SQL_SERVER: servicebus-sql
-          MSSQL_SA_PASSWORD: LocalOnly_ServiceBus_2026!
-          EMULATOR_HTTP_PORT: "5300"
-          SQL_WAIT_INTERVAL: "20"
-        ports:
-          - 5672:5672
-          - 5300:5300
-        volumes:
-          - ${{ github.workspace }}/infrastructure/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -52,6 +22,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: src/ApprovalFlow.Web/package-lock.json
+      - run: ./scripts/start-local.sh
       - run: dotnet restore ApprovalFlow.slnx
       - run: dotnet build ApprovalFlow.slnx --no-restore
       - run: dotnet test ApprovalFlow.slnx --no-build
@@ -70,3 +41,5 @@ jobs:
         run: npm run e2e
       - run: docker compose config --quiet
       - run: docker compose build
+      - if: always()
+        run: docker compose down --remove-orphans
