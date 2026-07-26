@@ -194,3 +194,7 @@ docker compose config --quiet
 The same application validation runs in [GitHub Actions](.github/workflows/ci.yml), including real SQL Server and Service Bus emulator integration tests and Playwright. Testcontainers adds an opt-in isolated SQL migration/seed test (`APPROVALFLOW_TESTCONTAINERS=true`) while the established Compose boundary remains authoritative for emulator tests.
 
 For clean-checkout review, media refresh, operations/security notes, and the 15-item evidence map, see [`docs/clean-checkout.md`](docs/clean-checkout.md), [`docs/media.md`](docs/media.md), [`docs/operations.md`](docs/operations.md), [`docs/security-privacy.md`](docs/security-privacy.md), and [`docs/public-readiness-checklist.md`](docs/public-readiness-checklist.md).
+
+## License
+
+ApprovalFlow is available under the [MIT License](LICENSE).
