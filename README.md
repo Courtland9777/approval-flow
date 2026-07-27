@@ -20,10 +20,6 @@ An employee drafts and submits a purchase request. A manager can approve, reject
 - OpenTelemetry and local Aspire observability, dependency-aware health checks, and end-to-end correlation.
 - Representative unit, SQL-backed integration, Testcontainers, frontend, and Playwright validation in GitHub Actions.
 
-<img src="docs/media/finance-audit.png" alt="ApprovalFlow finance review workspace showing request details, asynchronous activity, and complete audit history" width="900">
-
-**See it:** [approximately 16-second primary workflow demonstration](docs/media/primary-workflow.webm) · [architecture and tradeoffs](docs/architecture.md) · [GitHub Actions CI](https://github.com/Courtland9777/approval-flow/actions/workflows/ci.yml) · [independent public-readiness evidence](docs/public-readiness-checklist.md)
-
 ## One-command local start
 
 Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
@@ -58,7 +54,25 @@ No Azure account, tenant, subscription, namespace, payment method, paid service,
 
 All published development endpoints bind only to IPv4 loopback (`127.0.0.1`). They are intended for access from the local machine, not from a LAN or the internet.
 
-### Local-only demo accounts
+## Application screenshots
+
+<img src="docs/media/employee-request.png" alt="Employee purchase-request workspace with request details and submission controls" width="900">
+
+*An employee prepares and submits a purchase request.*
+
+<img src="docs/media/manager-review.png" alt="Manager review workspace with request details and approval actions" width="900">
+
+*A manager reviews a submitted request and records a decision.*
+
+<img src="docs/media/finance-audit.png" alt="Finance review workspace with asynchronous activity and audit history" width="900">
+
+*Finance reviews routed work with activity and audit context.*
+
+<img src="docs/media/local-observability.png" alt="Local Aspire dashboard showing ApprovalFlow telemetry" width="900">
+
+*The local Aspire dashboard exposes application telemetry during development.*
+
+## Authentication and demo accounts
 
 These seeded credentials are non-sensitive demonstration data. They must never be reused or deployed:
 

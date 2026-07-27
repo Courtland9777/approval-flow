@@ -2,14 +2,16 @@
 set -euo pipefail
 
 project_name="${COMPOSE_PROJECT_NAME:-approval-flow}"
-docker compose --project-name "$project_name" up -d --build --wait
+docker compose --project-name "$project_name" up -d --build
 
-for attempt in $(seq 1 60); do
+for attempt in $(seq 1 120); do
   if curl --fail --silent http://localhost:5080/health/ready >/dev/null; then
     break
   fi
-  if [[ "$attempt" -eq 60 ]]; then
-    printf 'ApprovalFlow did not become ready within 60 seconds.\n' >&2
+  if [[ "$attempt" -eq 120 ]]; then
+    printf 'ApprovalFlow did not become ready within 120 seconds.\n' >&2
+    docker compose --project-name "$project_name" ps >&2
+    docker compose --project-name "$project_name" logs --no-color --tail 200 >&2
     exit 1
   fi
   sleep 1

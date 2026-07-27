@@ -10,7 +10,6 @@ const browser = process.env.PW_TEST_CONNECT_WS_ENDPOINT
   : await chromium.launch({ headless: true })
 const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
-  recordVideo: { dir: mediaDir, size: { width: 1280, height: 800 } },
 })
 const page = await context.newPage()
 const password = 'LocalOnly!2026'
@@ -69,9 +68,7 @@ await page.getByRole('button', { name: 'Approve' }).click()
 await reviewerPause()
 await page.screenshot({ path: resolve(mediaDir, 'finance-audit.png'), fullPage: true })
 
-const video = page.video()
 await context.close()
-if (video) await video.saveAs(resolve(mediaDir, 'primary-workflow.webm'))
 
 const observability = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 await observability.goto('http://localhost:18888')
