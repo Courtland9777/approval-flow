@@ -16,6 +16,6 @@ This checklist maps the independently verified recruiter/public-readiness eviden
 | 10 | CI passes | Verified | `.github/workflows/ci.yml`, `scripts/validate.sh`; latest successful applicable default-branch or pull-request run, independently verified |
 | 11 | Representative unit/integration/E2E tests exist | Verified | `tests/`, web tests, CI workflow |
 | 12 | Architecture/tradeoffs/diagram are clear | Verified | `docs/architecture.md` |
-| 13 | Screenshots/short recording are viewable | Verified | `docs/media/` and `docs/media.md` |
+| 13 | Application and observability screenshots are viewable | Verified | `docs/media/` and `docs/media.md` |
 | 14 | No Azure account/payment/live deployment required | Verified | README, Compose, architecture non-goals |
 | 15 | No secrets/private paths/false claims/stale wording | Verified | security review and final tracked public-surface scan |
