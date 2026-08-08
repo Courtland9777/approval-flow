@@ -5,32 +5,11 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=20232A)](https://react.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-ApprovalFlow is a local-first internal purchasing application built as a .NET modular monolith. Its React workflow authenticates employees, managers, and finance administrators against the ASP.NET Core API, enforces ownership and reviewer roles, routes deterministic approvals, records an audit trail, and rejects stale writes with SQL Server optimistic concurrency.
+ApprovalFlow is a local-first purchase-request approval application that models an internal employee → manager → finance workflow. It combines a React/TypeScript UI with a .NET 10 ASP.NET Core API and SQL Server, with server-enforced authorization, audit history, optimistic concurrency, transactional-outbox messaging, and OpenTelemetry-backed local observability.
 
 ## How it works
 
 An employee drafts and submits a purchase request. A manager can approve, reject, or return it; requests of at least $1,000 and Software or Security purchases continue to a finance administrator. Each decision is authenticated, authorized, concurrency-protected, and appended to the audit history. The API transaction writes the request, audit entry, and versioned outbox message together; a Worker later publishes and projects that activity through the local Azure Service Bus emulator.
-
-## What this demonstrates
-
-- Role-based and resource-level authorization, including defense-in-depth self-approval prevention.
-- SQL Server persistence, complete audit history, and optimistic concurrency with explicit conflict responses.
-- A transactional outbox and idempotent .NET Worker processing for reliable at-least-once delivery.
-- The Azure Service Bus SDK exercised against Microsoft's local emulator, with bounded retry and dead-letter handling.
-- OpenTelemetry and local Aspire observability, dependency-aware health checks, and end-to-end correlation.
-- Representative unit, SQL-backed integration, Testcontainers, frontend, and Playwright validation in GitHub Actions.
-
-## One-command local start
-
-Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
-
-```bash
-./scripts/start-local.sh
-```
-
-This starts SQL Server, Microsoft's local Azure Service Bus emulator and its SQL Edge dependency, the API, Worker, built React SPA, and standalone Aspire dashboard. The SPA is at `http://localhost:5173`, OpenAPI at `http://localhost:5080/openapi/v1.json`, health at `/health/live` and `/health/ready`, and local telemetry at `http://localhost:18888`.
-
-Primary technologies: .NET 10, ASP.NET Core, EF Core, SQL Server, React 19, TypeScript, Azure Service Bus SDK plus local emulator, Docker Compose, OpenTelemetry/Aspire, xUnit, Vitest, Playwright, and GitHub Actions.
 
 ```mermaid
 flowchart LR
@@ -44,6 +23,33 @@ flowchart LR
     F -->|return| E
 ```
 
+<img src="docs/media/finance-audit.png" alt="Finance review workspace with asynchronous activity and audit history" width="900">
+
+*Finance reviews routed work with asynchronous activity and audit history visible in the same workflow.*
+
+## Engineering highlights
+
+- Role-based and resource-level authorization, including defense-in-depth self-approval prevention.
+- SQL Server persistence, complete audit history, and optimistic concurrency with explicit conflict responses.
+- A transactional outbox and idempotent .NET Worker processing for reliable at-least-once delivery.
+- The Azure Service Bus SDK exercised against Microsoft's local emulator, with bounded retry and dead-letter handling.
+- OpenTelemetry and local Aspire observability, dependency-aware health checks, and end-to-end correlation.
+- Representative unit, SQL-backed integration, Testcontainers, frontend, and Playwright validation in GitHub Actions.
+
+Primary technologies: .NET 10, ASP.NET Core, EF Core, SQL Server, React 19, TypeScript, Azure Service Bus SDK plus local emulator, Docker Compose, OpenTelemetry/Aspire, xUnit, Vitest, Playwright, and GitHub Actions.
+
+**Technical deep dive:** [Architecture & tradeoffs](docs/architecture.md) · [Operations & recovery](docs/operations.md) · [Security boundaries](docs/security-privacy.md) · [CI workflow](.github/workflows/ci.yml)
+
+## One-command local start
+
+Requirements: .NET 10 SDK, Docker with Docker Compose, and Node.js 24 LTS with npm.
+
+```bash
+./scripts/start-local.sh
+```
+
+This starts SQL Server, Microsoft's local Azure Service Bus emulator and its SQL Edge dependency, the API, Worker, built React SPA, and standalone Aspire dashboard. The SPA is at `http://localhost:5173`, OpenAPI at `http://localhost:5080/openapi/v1.json`, health at `/health/live` and `/health/ready`, and local telemetry at `http://localhost:18888`.
+
 Stop only this Compose project, preserving its development volumes:
 
 ```bash
@@ -54,7 +60,7 @@ No Azure account, tenant, subscription, namespace, payment method, paid service,
 
 All published development endpoints bind only to IPv4 loopback (`127.0.0.1`). They are intended for access from the local machine, not from a LAN or the internet.
 
-## Application screenshots
+## More workflow and observability screenshots
 
 <img src="docs/media/employee-request.png" alt="Employee purchase-request workspace with request details and submission controls" width="900">
 
@@ -63,10 +69,6 @@ All published development endpoints bind only to IPv4 loopback (`127.0.0.1`). Th
 <img src="docs/media/manager-review.png" alt="Manager review workspace with request details and approval actions" width="900">
 
 *A manager reviews a submitted request and records a decision.*
-
-<img src="docs/media/finance-audit.png" alt="Finance review workspace with asynchronous activity and audit history" width="900">
-
-*Finance reviews routed work with activity and audit context.*
 
 <img src="docs/media/local-observability.png" alt="Local Aspire dashboard showing ApprovalFlow telemetry" width="900">
 
@@ -85,7 +87,8 @@ These seeded credentials are non-sensitive demonstration data. They must never b
 
 The manager has the Employee role as well so the local workflow can demonstrate the defense against approving one's own request.
 
-### Login and authenticated requests
+<details>
+<summary><strong>API walkthrough</strong></summary>
 
 Login uses ASP.NET Core Identity's built-in local bearer-token endpoint:
 
@@ -137,6 +140,8 @@ curl -X POST http://localhost:5080/api/purchase-requests/{id}/approve \
 The same reviewer endpoint supports `approve`, `reject`, and `return`. Reject and return require a reason. Returned requests must be revised with `PUT /api/purchase-requests/{id}` before the employee can resubmit.
 
 Set `ConnectionStrings__ApprovalFlow` to override the non-secret development connection string. The Compose password and demo-user password are local demonstration values only.
+
+</details>
 
 ## Authorization and workflow
 

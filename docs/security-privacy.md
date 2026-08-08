@@ -16,4 +16,4 @@ This is a local demonstration, not a production security deployment. It has no e
 
 Every published development port binds explicitly to IPv4 loopback (`127.0.0.1`). The SQL Server, Service Bus emulator, API, SPA, Aspire frontend, and OTLP receiver are not intended for LAN or internet exposure. Container-to-container traffic remains on the private Compose network.
 
-`npm audit` currently reports 13 high-severity development-tool dependency advisories; `npm audit --omit=dev --audit-level=high` reports 0 production dependency vulnerabilities. No forced or breaking automated upgrade is applied merely to silence tooling-tree output.
+At the 2026-07-25 review, `npm audit` reported 13 high-severity development-tool dependency advisories; `npm audit --omit=dev --audit-level=high` reported 0 production dependency vulnerabilities. No forced or breaking automated upgrade was applied merely to silence tooling-tree output.
