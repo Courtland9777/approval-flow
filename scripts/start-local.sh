@@ -14,7 +14,34 @@ print_diagnostics() {
   docker compose --project-name "$project_name" logs --no-color --tail 200 >&2
 }
 
-docker compose --project-name "$project_name" up -d --build
+# The API owns application database creation and migrations. Start it and its
+# infrastructure dependencies before the Worker so no second application
+# connection can race the initial database setup.
+docker compose --project-name "$project_name" up -d --build api
+
+for attempt in $(seq 1 120); do
+  exited_services="$(docker compose --project-name "$project_name" ps --services --status exited | sort)"
+
+  if [[ -n "$exited_services" ]]; then
+    printf 'ApprovalFlow service(s) exited during API startup:\n%s\n' "$exited_services" >&2
+    print_diagnostics
+    exit 1
+  fi
+
+  if curl --fail --silent http://127.0.0.1:5080/health/ready >/dev/null; then
+    break
+  fi
+
+  if [[ "$attempt" -eq 120 ]]; then
+    printf 'The ApprovalFlow API did not become ready within 120 seconds.\n' >&2
+    print_diagnostics
+    exit 1
+  fi
+
+  sleep 1
+done
+
+docker compose --project-name "$project_name" up -d --build worker web
 
 for attempt in $(seq 1 120); do
   running_services="$(docker compose --project-name "$project_name" ps --services --status running | sort)"
