@@ -1,6 +1,6 @@
-# Independent public-readiness checklist
+# Verification checklist
 
-This checklist maps the independently verified recruiter/public-readiness evidence. Visibility, deployment, and career-use authority remain separate decisions.
+This checklist maps implementation and verification evidence for the current repository. Visibility, deployment, and career-use authority remain separate decisions.
 
 | # | Acceptance criterion | Status | Exact repository evidence |
 |---|---|---|---|
