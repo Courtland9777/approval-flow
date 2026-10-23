@@ -25,7 +25,8 @@ jobs:
       - run: ./scripts/start-local.sh
       - run: dotnet restore ApprovalFlow.slnx
       - run: dotnet build ApprovalFlow.slnx --no-restore
-      - run: dotnet test ApprovalFlow.slnx --no-build
+      - run: dotnet test --project tests/ApprovalFlow.Domain.UnitTests/ApprovalFlow.Domain.UnitTests.csproj --no-build --no-restore
+      - run: dotnet vstest tests/ApprovalFlow.Api.IntegrationTests/bin/Debug/net10.0/ApprovalFlow.Api.IntegrationTests.dll
         env:
           APPROVALFLOW_TESTCONTAINERS: "true"
       - run: dotnet format ApprovalFlow.slnx --verify-no-changes --no-restore
