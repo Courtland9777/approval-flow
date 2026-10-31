@@ -215,7 +215,7 @@ public sealed class PurchaseRequestService(
 
     private void AddTransitionEvent(PurchaseRequest request)
     {
-        var audit = request.AuditEntries.OrderByDescending(entry => entry.OccurredAt).First();
+        var audit = request.AuditEntries.Last();
         var pending = audit.ToStatus switch
         {
             PurchaseRequestStatus.PendingManagerApproval => PendingIntegrationEvent.Create(
